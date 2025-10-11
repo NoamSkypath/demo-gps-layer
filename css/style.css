@@ -89,6 +89,22 @@ body {
   display: none;
 }
 
+/* Coverage table cell styling */
+.coverage-yes {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.coverage-no {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.array-cell {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;

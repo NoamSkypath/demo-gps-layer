@@ -13,6 +13,7 @@ class App {
       full_output: false,
       max_ratio_bad: 0.05,
       max_n_bad: 3,
+      show_no_coverage: false,
     };
     this.isLoading = false;
     this.currentJsonData = null;
@@ -64,6 +65,8 @@ class App {
     // Data source selector
     document.getElementById('data-source').addEventListener('change', (e) => {
       this.currentSettings.dataSource = e.target.value;
+      this.updateControlsVisibility(e.target.value);
+      this.updateLegend(e.target.value);
       this.refreshData();
     });
 
@@ -88,6 +91,14 @@ class App {
       .getElementById('altitude-filter')
       .addEventListener('change', (e) => {
         this.currentSettings.altitudes = e.target.value;
+        this.refreshData();
+      });
+
+    // Show no coverage toggle (for coverage only)
+    document
+      .getElementById('toggle-show-no-coverage')
+      .addEventListener('change', (e) => {
+        this.currentSettings.show_no_coverage = e.target.checked;
         this.refreshData();
       });
 
@@ -160,6 +171,12 @@ class App {
     // Initialize grouping controls visibility
     this.toggleGroupingControls(this.currentSettings.grouped);
 
+    // Initialize controls visibility based on data source
+    this.updateControlsVisibility(this.currentSettings.dataSource);
+
+    // Initialize legend
+    this.updateLegend(this.currentSettings.dataSource);
+
     // Refresh button
     document.getElementById('refresh-btn').addEventListener('click', () => {
       this.refreshData();
@@ -209,7 +226,7 @@ class App {
       this.isLoading = true;
       this.setRefreshButtonLoading(true);
 
-      console.log('Loading jamming data with settings:', this.currentSettings);
+      console.log('Loading data with settings:', this.currentSettings);
 
       const result = await this.mapManager.loadJammingData(
         this.currentSettings
@@ -227,7 +244,7 @@ class App {
       console.log('Data loaded successfully:', result.stats);
     } catch (error) {
       console.error('Failed to load data:', error);
-      this.showError('Failed to load jamming data. Please try again.');
+      this.showError('Failed to load data. Please try again.');
     } finally {
       this.isLoading = false;
       this.setRefreshButtonLoading(false);
@@ -709,9 +726,18 @@ class App {
               else if (value < 0.15) cellClass += 'ratio-low';
               else if (value < 0.3) cellClass += 'ratio-moderate';
               else cellClass += 'ratio-high';
+            } else if (col === 'coverage') {
+              // Special handling for coverage field
+              const hasCoverage = value !== 'none';
+              cellValue = hasCoverage ? '✓ Has Coverage' : '✗ No Coverage';
+              cellClass = hasCoverage ? 'coverage-yes' : 'coverage-no';
             } else if (typeof value === 'number') {
               cellValue = value.toLocaleString();
               cellClass = 'number-cell';
+            } else if (Array.isArray(value)) {
+              // Handle arrays (like h3_indices)
+              cellValue = `[${value.length} items]`;
+              cellClass = 'array-cell';
             } else {
               cellValue = String(value);
             }
@@ -876,12 +902,123 @@ class App {
     const maxRatioBadGroup = document.getElementById('group-max-ratio-bad');
     const maxNBadGroup = document.getElementById('group-max-n-bad');
 
-    if (show) {
+    // Only show these for aggregated data when grouped is enabled
+    const isCoverage = this.currentSettings.dataSource === 'jamming/coverage';
+
+    if (show && !isCoverage) {
       maxRatioBadGroup.style.display = 'block';
       maxNBadGroup.style.display = 'block';
     } else {
       maxRatioBadGroup.style.display = 'none';
       maxNBadGroup.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update legend based on data source
+   */
+  updateLegend(dataSource) {
+    const legend = document.getElementById('map-legend');
+    const isCoverage = dataSource === 'jamming/coverage';
+
+    if (isCoverage) {
+      // Coverage legend
+      legend.innerHTML = `
+        <h4>Coverage Areas</h4>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #10b981"></span>
+          <span>Has Coverage</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #dc2626"></span>
+          <span>No Coverage</span>
+        </div>
+      `;
+    } else {
+      // Jamming aggregated legend
+      legend.innerHTML = `
+        <h4>Jamming Severity</h4>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #fef3c7"></span>
+          <span>0-5% Minimal</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #fed7aa"></span>
+          <span>5-15% Low</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #fb923c"></span>
+          <span>15-30% Moderate</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #dc2626"></span>
+          <span>30%+ High</span>
+        </div>
+      `;
+    }
+  }
+
+  /**
+   * Update control visibility based on data source
+   */
+  updateControlsVisibility(dataSource) {
+    const isCoverage = dataSource === 'jamming/coverage';
+
+    // Get control elements
+    const nObsMinGroup = document
+      .querySelector('#n-obs-min')
+      .closest('.control-group');
+    const nObsMinLabel = nObsMinGroup.querySelector('label');
+    const nObsMinSmall = nObsMinGroup.querySelector('small');
+
+    const showNoCoverageGroup = document.getElementById(
+      'coverage-show-no-coverage'
+    );
+    const hoursSummedGroup = document
+      .getElementById('toggle-hours-summed')
+      .closest('.control-group');
+    const fullOutputGroup = document
+      .getElementById('toggle-full-output')
+      .closest('.control-group');
+    const outputSection = fullOutputGroup.previousElementSibling; // The "Output Options" section
+
+    if (isCoverage) {
+      // For coverage: change "Min Observations" to "Min Count"
+      nObsMinLabel.innerHTML =
+        'Min Count: <span id="n-obs-value">' +
+        document.getElementById('n-obs-value').textContent +
+        '</span>';
+      nObsMinSmall.textContent = 'Minimum total observations per cell';
+
+      // Show coverage-specific controls
+      showNoCoverageGroup.style.display = 'block';
+
+      // Hide aggregated-data-only controls
+      hoursSummedGroup.style.display = 'none';
+      fullOutputGroup.style.display = 'none';
+      outputSection.style.display = 'none';
+
+      // Hide grouping-specific agg controls
+      document.getElementById('group-max-ratio-bad').style.display = 'none';
+      document.getElementById('group-max-n-bad').style.display = 'none';
+    } else {
+      // For aggregated: use "Min Observations"
+      nObsMinLabel.innerHTML =
+        'Min Observations: <span id="n-obs-value">' +
+        document.getElementById('n-obs-value').textContent +
+        '</span>';
+      nObsMinSmall.textContent = 'Minimum unique aircraft per cell';
+
+      // Hide coverage-specific controls
+      showNoCoverageGroup.style.display = 'none';
+
+      // Show all aggregated controls
+      hoursSummedGroup.style.display = 'block';
+      fullOutputGroup.style.display = 'block';
+      outputSection.style.display = 'block';
+
+      // Update grouping controls based on current grouped state
+      this.toggleGroupingControls(this.currentSettings.grouped);
     }
   }
 

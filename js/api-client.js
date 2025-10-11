@@ -101,7 +101,7 @@ class APIClient {
       altitudes = 'FL100-FL450',
       altitude_summed = false,
       show_no_coverage = false,
-      min_count = 5,
+      n_obs_min = 5, // Use same param name as agg for consistency in UI
       grouped = false,
     } = options;
 
@@ -110,7 +110,7 @@ class APIClient {
       altitudes,
       altitude_summed,
       show_no_coverage,
-      min_count,
+      min_count: n_obs_min, // Map to API's min_count parameter
       grouped,
     });
   }

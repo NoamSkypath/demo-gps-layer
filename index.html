@@ -41,10 +41,10 @@
               <select id="data-source">
                 <optgroup label="Jamming">
                   <option value="jamming/agg" selected>
-                    Jamming - jamming/agg
+                    Jamming - Aggregated Data
                   </option>
-                  <option value="jamming/coverage" disabled>
-                    Jamming - jamming/coverage (Coming soon)
+                  <option value="jamming/coverage">
+                    Jamming - Coverage Areas
                   </option>
                 </optgroup>
                 <optgroup label="Spoofing">
@@ -108,6 +108,19 @@
                 <option value="FL200-FL300">FL200-FL300</option>
                 <option value="FL300-FL450">FL300-FL450</option>
               </select>
+            </div>
+
+            <!-- Show No Coverage (coverage only) -->
+            <div
+              class="control-group"
+              id="coverage-show-no-coverage"
+              style="display: none"
+            >
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-show-no-coverage" />
+                <span>Show No Coverage Areas</span>
+              </label>
+              <small>Display areas lacking coverage in red</small>
             </div>
 
             <!-- Grouping Options -->
@@ -252,24 +265,8 @@
               </div>
 
               <!-- Legend (Absolute positioned in map) -->
-              <div class="map-legend">
-                <h4>Jamming Severity</h4>
-                <div class="legend-item">
-                  <span class="legend-color" style="background: #fef3c7"></span>
-                  <span>0-5% Minimal</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color" style="background: #fed7aa"></span>
-                  <span>5-15% Low</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color" style="background: #fb923c"></span>
-                  <span>15-30% Moderate</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color" style="background: #dc2626"></span>
-                  <span>30%+ High</span>
-                </div>
+              <div class="map-legend" id="map-legend">
+                <!-- Content will be dynamically updated -->
               </div>
 
               <div id="loading" class="loading-overlay">

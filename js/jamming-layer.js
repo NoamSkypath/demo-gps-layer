@@ -32,6 +32,7 @@ class JammingLayer {
         'fill-color': [
           'case',
           ['has', 'ratio_bad'],
+          // Jamming aggregated data - color by severity
           [
             'step',
             ['get', 'ratio_bad'],
@@ -43,7 +44,11 @@ class JammingLayer {
             0.3,
             CONFIG.JAMMING.COLOR_SCALE[3].color, // 30%+
           ],
-          '#cccccc', // fallback
+          ['has', 'coverage'],
+          // Coverage data with no coverage
+          '#dc2626', // red for no coverage
+          // Coverage data with coverage (default)
+          '#10b981', // green for coverage areas
         ],
         'fill-opacity': 0.6,
       },
@@ -83,7 +88,16 @@ class JammingLayer {
    */
   async loadData(options = {}) {
     try {
-      const response = await this.apiClient.getJammingData(options);
+      // Determine which API method to call based on data source
+      const dataSource = options.dataSource || 'jamming/agg';
+      let response;
+
+      if (dataSource === 'jamming/coverage') {
+        response = await this.apiClient.getJammingCoverage(options);
+      } else {
+        response = await this.apiClient.getJammingData(options);
+      }
+
       this.currentData = response.data;
       this.metadata = response.metadata;
 
@@ -93,7 +107,7 @@ class JammingLayer {
       return {
         data: this.currentData,
         metadata: this.metadata,
-        stats: this.calculateStats(this.currentData),
+        stats: this.calculateStats(this.currentData, dataSource),
       };
     } catch (error) {
       console.error('Failed to load jamming data:', error);
@@ -114,7 +128,7 @@ class JammingLayer {
   /**
    * Calculate statistics from the data
    */
-  calculateStats(geojson) {
+  calculateStats(geojson, dataSource = 'jamming/agg') {
     if (!geojson || !geojson.features) {
       return {
         totalCells: 0,
@@ -124,6 +138,17 @@ class JammingLayer {
     }
 
     const features = geojson.features;
+
+    // For coverage data, just count areas
+    if (dataSource === 'jamming/coverage') {
+      return {
+        totalCells: features.length,
+        uniqueAircraft: 0,
+        highSeverityCells: 0,
+      };
+    }
+
+    // For aggregated data, calculate jamming stats
     let totalUniqueAircraft = 0;
     let highSeverityCells = 0;
 
@@ -150,6 +175,10 @@ class JammingLayer {
   showPopup(feature, lngLat) {
     const props = feature.properties;
 
+    // Determine if this is coverage data or aggregated data
+    const isCoverage =
+      props.coverage !== undefined || (!props.ratio_bad && !props.n_unique_ac);
+
     let h3Info = '';
     if (props.h3_indices && Array.isArray(props.h3_indices)) {
       h3Info = `<div class="popup-stat">
@@ -163,39 +192,62 @@ class JammingLayer {
             </div>`;
     }
 
-    const html = `
-            <div class="popup-content">
-                <h4>Jamming Details</h4>
-                ${h3Info}
-                <div class="popup-stat">
-                    <span class="popup-stat-label">Altitude:</span>
-                    <span class="popup-stat-value">${
-                      props.altitude || 'N/A'
-                    }</span>
-                </div>
-                <hr style="margin: 0.5rem 0; border: 1px solid #444;">
-                <div class="popup-stat">
-                    <span class="popup-stat-label">Total Aircraft:</span>
-                    <span class="popup-stat-value">${
-                      props.n_unique_ac || 0
-                    }</span>
-                </div>
-                <div class="popup-stat">
-                    <span class="popup-stat-label">Good (NIC 8-11):</span>
-                    <span class="popup-stat-value">${props.n_good || 0}</span>
-                </div>
-                <div class="popup-stat">
-                    <span class="popup-stat-label">Bad (NIC 0):</span>
-                    <span class="popup-stat-value">${props.n_bad || 0}</span>
-                </div>
-                <div class="popup-stat">
-                    <span class="popup-stat-label">Severity:</span>
-                    <span class="popup-stat-value">${formatPercentage(
-                      props.ratio_bad || 0
-                    )}</span>
-                </div>
-            </div>
-        `;
+    let html = '';
+
+    if (isCoverage) {
+      // Coverage popup
+      const hasCoverage = props.coverage !== 'none';
+      html = `
+        <div class="popup-content">
+          <h4>Coverage ${hasCoverage ? '✓' : '✗'}</h4>
+          ${h3Info}
+          <div class="popup-stat">
+            <span class="popup-stat-label">Altitude:</span>
+            <span class="popup-stat-value">${props.altitude || 'N/A'}</span>
+          </div>
+          <hr style="margin: 0.5rem 0; border: 1px solid #444;">
+          <div class="popup-stat">
+            <span class="popup-stat-label">Status:</span>
+            <span class="popup-stat-value" style="color: ${
+              hasCoverage ? '#10b981' : '#dc2626'
+            }">
+              ${hasCoverage ? 'Has Coverage' : 'No Coverage'}
+            </span>
+          </div>
+        </div>
+      `;
+    } else {
+      // Jamming aggregated popup
+      html = `
+        <div class="popup-content">
+          <h4>Jamming Details</h4>
+          ${h3Info}
+          <div class="popup-stat">
+            <span class="popup-stat-label">Altitude:</span>
+            <span class="popup-stat-value">${props.altitude || 'N/A'}</span>
+          </div>
+          <hr style="margin: 0.5rem 0; border: 1px solid #444;">
+          <div class="popup-stat">
+            <span class="popup-stat-label">Total Aircraft:</span>
+            <span class="popup-stat-value">${props.n_unique_ac || 0}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="popup-stat-label">Good (NIC 8-11):</span>
+            <span class="popup-stat-value">${props.n_good || 0}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="popup-stat-label">Bad (NIC 0):</span>
+            <span class="popup-stat-value">${props.n_bad || 0}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="popup-stat-label">Severity:</span>
+            <span class="popup-stat-value">${formatPercentage(
+              props.ratio_bad || 0
+            )}</span>
+          </div>
+        </div>
+      `;
+    }
 
     new mapboxgl.Popup().setLngLat(lngLat).setHTML(html).addTo(this.map);
   }
