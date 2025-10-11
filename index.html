@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GPS Jamming Layer - POC Demo</title>
+
+    <!-- Mapbox GL JS -->
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header class="header">
+        <h1>🗺️ GPS Jamming Layer - POC Demo</h1>
+      </header>
+
+      <!-- Content Wrapper -->
+      <div class="content-wrapper">
+        <!-- Sidebar Controls -->
+        <aside class="sidebar">
+          <div class="panel">
+            <h3>Controls</h3>
+
+            <!-- Refresh Button -->
+            <div class="control-group">
+              <button id="refresh-btn" class="btn-primary">
+                <span id="refresh-icon">🔄</span> Refresh Data
+              </button>
+            </div>
+
+            <!-- Data Source Selector -->
+            <div class="control-group">
+              <label for="data-source">Data Source:</label>
+              <select id="data-source">
+                <optgroup label="Jamming">
+                  <option value="jamming/agg" selected>
+                    Jamming - jamming/agg
+                  </option>
+                  <option value="jamming/coverage" disabled>
+                    Jamming - jamming/coverage (Coming soon)
+                  </option>
+                </optgroup>
+                <optgroup label="Spoofing">
+                  <option value="spoofing/agg" disabled>
+                    Spoofing - spoofing/agg/geojson (Coming soon)
+                  </option>
+                  <option value="spoofing/h3" disabled>
+                    Spoofing - spoofing/h3_geojson (Coming soon)
+                  </option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Layer Toggle -->
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-layer" checked />
+                <span>Show Layer</span>
+              </label>
+            </div>
+
+            <!-- Time Control -->
+            <div class="control-group">
+              <label for="lookback-hours"
+                >Lookback Hours: <span id="hours-value">6</span></label
+              >
+              <input
+                type="range"
+                id="lookback-hours"
+                min="1"
+                max="72"
+                value="6"
+                step="1"
+              />
+              <small>1-72 hours</small>
+            </div>
+
+            <!-- Minimum Observations -->
+            <div class="control-group">
+              <label for="n-obs-min"
+                >Min Observations: <span id="n-obs-value">5</span></label
+              >
+              <input
+                type="range"
+                id="n-obs-min"
+                min="1"
+                max="50"
+                value="5"
+                step="1"
+              />
+              <small>Minimum unique aircraft per cell</small>
+            </div>
+
+            <!-- Altitude Filter -->
+            <div class="control-group">
+              <label for="altitude-filter">Altitude Band:</label>
+              <select id="altitude-filter">
+                <option value="FL100-FL450" selected>FL100-FL450 (All)</option>
+                <option value="<FL100">&lt;FL100</option>
+                <option value="FL100-FL200">FL100-FL200</option>
+                <option value="FL200-FL300">FL200-FL300</option>
+                <option value="FL300-FL450">FL300-FL450</option>
+              </select>
+            </div>
+
+            <!-- Grouping Options -->
+            <div class="control-group">
+              <label class="section-label">📊 Grouping Options</label>
+            </div>
+
+            <!-- Grouping Toggle -->
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-grouped" />
+                <span>Group Contiguous Cells</span>
+              </label>
+            </div>
+
+            <!-- Altitude Summed Toggle -->
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-altitude-summed" />
+                <span>Sum Across Altitudes</span>
+              </label>
+              <small>Aggregate all altitude bands</small>
+            </div>
+
+            <!-- Hours Summed Toggle -->
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-hours-summed" checked />
+                <span>Sum Across Hours</span>
+              </label>
+              <small>Aggregate entire time period</small>
+            </div>
+
+            <!-- Max Ratio Bad (only when grouped) -->
+            <div class="control-group" id="group-max-ratio-bad">
+              <label for="max-ratio-bad"
+                >Max Ratio Bad: <span id="max-ratio-bad-value">5</span>%</label
+              >
+              <input
+                type="range"
+                id="max-ratio-bad"
+                min="0"
+                max="100"
+                value="5"
+                step="1"
+              />
+              <small>Max bad ratio for grouping (0-100%)</small>
+            </div>
+
+            <!-- Max N Bad (only when grouped) -->
+            <div class="control-group" id="group-max-n-bad">
+              <label for="max-n-bad"
+                >Max Bad Count: <span id="max-n-bad-value">3</span></label
+              >
+              <input
+                type="range"
+                id="max-n-bad"
+                min="0"
+                max="20"
+                value="3"
+                step="1"
+              />
+              <small>Max bad aircraft for grouping</small>
+            </div>
+
+            <!-- Output Options -->
+            <div class="control-group">
+              <label class="section-label">⚙️ Output Options</label>
+            </div>
+
+            <!-- Full Output Toggle -->
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-full-output" />
+                <span>Full Output</span>
+              </label>
+              <small>Include all raw NIC counts</small>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-panel">
+              <h4>📊 Statistics</h4>
+              <div class="stat-item">
+                <span class="stat-label">Total Cells:</span>
+                <span class="stat-value" id="stat-cells">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Unique Aircraft:</span>
+                <span class="stat-value" id="stat-aircraft">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">High Severity:</span>
+                <span class="stat-value" id="stat-high">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Last Updated:</span>
+                <span class="stat-value" id="stat-updated">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Response Size:</span>
+                <span class="stat-value" id="stat-size">-</span>
+              </div>
+            </div>
+
+            <!-- Request Details -->
+            <div class="request-panel">
+              <h4>🔗 Request Details</h4>
+              <div class="url-display">
+                <label>API URL:</label>
+                <div id="api-url" class="url-text">-</div>
+                <button id="copy-url-btn" class="btn-copy" title="Copy URL">
+                  📋
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+          <!-- Tabs -->
+          <div class="tabs">
+            <button class="tab-button active" data-tab="map">🗺️ Map</button>
+            <button class="tab-button" data-tab="data">📊 Data</button>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="tab-contents">
+            <!-- Map Tab -->
+            <div id="tab-map" class="tab-content active">
+              <div id="map"></div>
+
+              <!-- Projection Toggle (Top-left) -->
+              <div class="projection-toggle">
+                <button
+                  id="toggle-projection"
+                  class="projection-btn"
+                  title="Toggle Globe/Flat"
+                >
+                  🌍 Globe
+                </button>
+              </div>
+
+              <!-- Legend (Absolute positioned in map) -->
+              <div class="map-legend">
+                <h4>Jamming Severity</h4>
+                <div class="legend-item">
+                  <span class="legend-color" style="background: #fef3c7"></span>
+                  <span>0-5% Minimal</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color" style="background: #fed7aa"></span>
+                  <span>5-15% Low</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color" style="background: #fb923c"></span>
+                  <span>15-30% Moderate</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color" style="background: #dc2626"></span>
+                  <span>30%+ High</span>
+                </div>
+              </div>
+
+              <div id="loading" class="loading-overlay">
+                <div class="spinner"></div>
+                <p>Loading jamming data...</p>
+              </div>
+            </div>
+
+            <!-- Data Tab -->
+            <div id="tab-data" class="tab-content">
+              <div class="data-viewer">
+                <div class="data-header">
+                  <div class="data-header-left">
+                    <h3>Data Table</h3>
+                    <span id="data-count" class="data-count">0 records</span>
+                  </div>
+                  <div class="data-header-buttons">
+                    <button id="toggle-view-btn" class="btn-secondary">
+                      📋 Show Raw JSON
+                    </button>
+                    <button id="copy-json-btn" class="btn-secondary">
+                      📋 Copy JSON
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Table View -->
+                <div id="table-view" class="table-container">
+                  <table id="data-table" class="data-table">
+                    <thead>
+                      <tr>
+                        <th>No data loaded yet</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Load data using the controls to see results</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- JSON View (hidden by default) -->
+                <div
+                  id="json-viewer"
+                  class="json-display json-viewer hidden"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/jamming-layer.js"></script>
+    <script src="js/map-manager.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
