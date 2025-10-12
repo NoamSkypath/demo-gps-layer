@@ -26,6 +26,23 @@ class App {
     this.dataViewMode = 'table'; // 'table' or 'json'
     this.tableSortColumn = null;
     this.tableSortDirection = 'asc'; // 'asc' or 'desc'
+    this.refreshDebounceTimer = null;
+    this.DEBOUNCE_DELAY = 3000; // 3 seconds
+  }
+
+  /**
+   * Debounced refresh - waits 3 seconds after last change before refreshing
+   */
+  debouncedRefresh() {
+    // Clear existing timer
+    if (this.refreshDebounceTimer) {
+      clearTimeout(this.refreshDebounceTimer);
+    }
+
+    // Set new timer
+    this.refreshDebounceTimer = setTimeout(() => {
+      this.refreshData();
+    }, this.DEBOUNCE_DELAY);
   }
 
   /**
@@ -72,12 +89,7 @@ class App {
       this.currentSettings.dataSource = e.target.value;
       this.updateControlsVisibility(e.target.value);
       this.updateLegend(e.target.value);
-      this.refreshData();
-    });
-
-    // Layer toggle
-    document.getElementById('toggle-layer').addEventListener('change', (e) => {
-      this.mapManager.toggleJammingLayer(e.target.checked);
+      this.debouncedRefresh();
     });
 
     // Lookback hours slider
@@ -88,7 +100,7 @@ class App {
     });
     hoursSlider.addEventListener('change', (e) => {
       this.currentSettings.lookback_hours = parseInt(e.target.value);
-      this.refreshData();
+      this.debouncedRefresh();
     });
 
     // Altitude filter
@@ -96,7 +108,7 @@ class App {
       .getElementById('altitude-filter')
       .addEventListener('change', (e) => {
         this.currentSettings.altitudes = e.target.value;
-        this.refreshData();
+        this.debouncedRefresh();
       });
 
     // Show no coverage toggle (for coverage only)
@@ -104,7 +116,7 @@ class App {
       .getElementById('toggle-show-no-coverage')
       .addEventListener('change', (e) => {
         this.currentSettings.show_no_coverage = e.target.checked;
-        this.refreshData();
+        this.debouncedRefresh();
       });
 
     // Altitude summed toggle
@@ -112,7 +124,7 @@ class App {
       .getElementById('toggle-altitude-summed')
       .addEventListener('change', (e) => {
         this.currentSettings.altitude_summed = e.target.checked;
-        this.refreshData();
+        this.debouncedRefresh();
       });
 
     // Hours summed toggle
@@ -120,7 +132,7 @@ class App {
       .getElementById('toggle-hours-summed')
       .addEventListener('change', (e) => {
         this.currentSettings.hours_summed = e.target.checked;
-        this.refreshData();
+        this.debouncedRefresh();
       });
 
     // Minimum observations slider
@@ -131,7 +143,7 @@ class App {
     });
     nObsMinSlider.addEventListener('change', (e) => {
       this.currentSettings.n_obs_min = parseInt(e.target.value);
-      this.refreshData();
+      this.debouncedRefresh();
     });
 
     // Grouped toggle
@@ -140,7 +152,7 @@ class App {
       .addEventListener('change', (e) => {
         this.currentSettings.grouped = e.target.checked;
         this.toggleGroupingControls(e.target.checked);
-        this.refreshData();
+        this.debouncedRefresh();
       });
 
     // Max ratio bad slider
@@ -151,7 +163,7 @@ class App {
     });
     maxRatioBadSlider.addEventListener('change', (e) => {
       this.currentSettings.max_ratio_bad = parseInt(e.target.value) / 100;
-      this.refreshData();
+      this.debouncedRefresh();
     });
 
     // Max n bad slider
@@ -162,7 +174,7 @@ class App {
     });
     maxNBadSlider.addEventListener('change', (e) => {
       this.currentSettings.max_n_bad = parseInt(e.target.value);
-      this.refreshData();
+      this.debouncedRefresh();
     });
 
     // Full output toggle
@@ -170,7 +182,7 @@ class App {
       .getElementById('toggle-full-output')
       .addEventListener('change', (e) => {
         this.currentSettings.full_output = e.target.checked;
-        this.refreshData();
+        this.debouncedRefresh();
       });
 
     // H3 Resolution slider
@@ -181,7 +193,7 @@ class App {
     });
     h3ResolutionSlider.addEventListener('change', (e) => {
       this.currentSettings.resolution = parseInt(e.target.value);
-      this.refreshData();
+      this.debouncedRefresh();
     });
 
     // H3 Coordinates Source
@@ -189,7 +201,7 @@ class App {
       .getElementById('h3-coords-source')
       .addEventListener('change', (e) => {
         this.currentSettings.coordinates_source = e.target.value;
-        this.refreshData();
+        this.debouncedRefresh();
       });
 
     // H3 Max Time Diff Before slider
@@ -204,7 +216,7 @@ class App {
     });
     h3TimeDiffBeforeSlider.addEventListener('change', (e) => {
       this.currentSettings.max_time_diff_before_sec = parseInt(e.target.value);
-      this.refreshData();
+      this.debouncedRefresh();
     });
 
     // H3 Max Time Diff After slider
@@ -217,7 +229,7 @@ class App {
     });
     h3TimeDiffAfterSlider.addEventListener('change', (e) => {
       this.currentSettings.max_time_diff_after_sec = parseInt(e.target.value);
-      this.refreshData();
+      this.debouncedRefresh();
     });
 
     // Initialize grouping controls visibility
