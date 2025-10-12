@@ -49,9 +49,7 @@
                 </optgroup>
                 <optgroup label="Spoofing">
                   <option value="spoofing/agg">Spoofing - Flight Events</option>
-                  <option value="spoofing/h3" disabled>
-                    Spoofing - spoofing/h3_geojson (Coming soon)
-                  </option>
+                  <option value="spoofing/h3">Spoofing - H3 Grid</option>
                 </optgroup>
               </select>
             </div>
@@ -120,6 +118,93 @@
                 >📅 Date Range (Not Implemented)</label
               >
               <small class="disabled-text">start_time / end_time</small>
+            </div>
+
+            <!-- H3 Options (Spoofing/h3 only) -->
+            <div class="control-group" id="h3-options" style="display: none">
+              <label class="section-label">🔷 H3 Grid Options</label>
+            </div>
+
+            <!-- H3 Resolution -->
+            <div
+              class="control-group"
+              id="h3-resolution-group"
+              style="display: none"
+            >
+              <label for="h3-resolution"
+                >H3 Resolution: <span id="h3-resolution-value">3</span></label
+              >
+              <input
+                type="range"
+                id="h3-resolution"
+                min="0"
+                max="15"
+                value="3"
+                step="1"
+              />
+              <small>0 (large cells) to 15 (small cells)</small>
+            </div>
+
+            <!-- Coordinates Source -->
+            <div
+              class="control-group"
+              id="h3-coords-source-group"
+              style="display: none"
+            >
+              <label for="h3-coords-source">Coordinates Source:</label>
+              <select id="h3-coords-source">
+                <option value="interpolated" selected>Interpolated</option>
+                <option value="before">Before Spoofing</option>
+                <option value="after">After Spoofing</option>
+                <option value="before+after">Before + After</option>
+              </select>
+              <small>Position data to include in aggregation</small>
+            </div>
+
+            <!-- Max Time Diff Before -->
+            <div
+              class="control-group"
+              id="h3-time-diff-before-group"
+              style="display: none"
+            >
+              <label for="h3-time-diff-before"
+                >Max Time Before:
+                <span id="h3-time-diff-before-value">600</span>s</label
+              >
+              <input
+                type="range"
+                id="h3-time-diff-before"
+                min="0"
+                max="1800"
+                value="600"
+                step="60"
+              />
+              <small
+                >Max time between last valid position and spoofing start</small
+              >
+            </div>
+
+            <!-- Max Time Diff After -->
+            <div
+              class="control-group"
+              id="h3-time-diff-after-group"
+              style="display: none"
+            >
+              <label for="h3-time-diff-after"
+                >Max Time After:
+                <span id="h3-time-diff-after-value">600</span>s</label
+              >
+              <input
+                type="range"
+                id="h3-time-diff-after"
+                min="0"
+                max="1800"
+                value="600"
+                step="60"
+              />
+              <small
+                >Max time between spoofing end and first valid position</small
+              >
             </div>
 
             <!-- Altitude Filter -->

@@ -6,9 +6,12 @@ class SpoofingLayer {
     this.sourceId = 'spoofing-source';
     this.lineLayerId = 'spoofing-line-layer';
     this.pointLayerId = 'spoofing-point-layer';
+    this.h3LayerId = 'spoofing-h3-layer';
+    this.h3OutlineLayerId = 'spoofing-h3-outline-layer';
     this.currentData = null;
     this.metadata = null;
     this.visible = true;
+    this.currentMode = 'agg'; // 'agg' or 'h3'
   }
 
   /**
@@ -53,6 +56,45 @@ class SpoofingLayer {
       },
     });
 
+    // Add H3 polygon fill layer (for H3 grid mode)
+    this.map.addLayer({
+      id: this.h3LayerId,
+      type: 'fill',
+      source: this.sourceId,
+      filter: ['==', ['geometry-type'], 'Polygon'],
+      paint: {
+        'fill-color': [
+          'interpolate',
+          ['linear'],
+          ['get', 'count'],
+          1,
+          '#fef3c7', // Very light yellow for low counts
+          5,
+          '#fbbf24', // Medium yellow
+          10,
+          '#f59e0b', // Amber
+          20,
+          '#d97706', // Dark amber
+          50,
+          '#dc2626', // Red for high counts
+        ],
+        'fill-opacity': 0.6,
+      },
+    });
+
+    // Add H3 polygon outline layer
+    this.map.addLayer({
+      id: this.h3OutlineLayerId,
+      type: 'line',
+      source: this.sourceId,
+      filter: ['==', ['geometry-type'], 'Polygon'],
+      paint: {
+        'line-color': '#374151',
+        'line-width': 1,
+        'line-opacity': 0.3,
+      },
+    });
+
     // Add hover effects for lines
     this.map.on('mouseenter', this.lineLayerId, () => {
       this.map.getCanvas().style.cursor = 'pointer';
@@ -83,6 +125,22 @@ class SpoofingLayer {
         this.showPopup(e.features[0], e.lngLat);
       }
     });
+
+    // Add hover effects for H3 polygons
+    this.map.on('mouseenter', this.h3LayerId, () => {
+      this.map.getCanvas().style.cursor = 'pointer';
+    });
+
+    this.map.on('mouseleave', this.h3LayerId, () => {
+      this.map.getCanvas().style.cursor = '';
+    });
+
+    // Add click handler for H3 polygons
+    this.map.on('click', this.h3LayerId, (e) => {
+      if (e.features && e.features.length > 0) {
+        this.showPopup(e.features[0], e.lngLat);
+      }
+    });
   }
 
   /**
@@ -90,7 +148,15 @@ class SpoofingLayer {
    */
   async loadData(options = {}) {
     try {
-      const response = await this.apiClient.getSpoofingData(options);
+      // Determine if this is H3 mode based on dataSource
+      const isH3 = options.dataSource === 'spoofing/h3';
+      this.currentMode = isH3 ? 'h3' : 'agg';
+
+      // Call appropriate API method
+      const response = isH3
+        ? await this.apiClient.getSpoofingH3Data(options)
+        : await this.apiClient.getSpoofingData(options);
+
       this.currentData = response.data;
       this.metadata = response.metadata;
 
@@ -131,24 +197,46 @@ class SpoofingLayer {
     }
 
     const features = geojson.features;
-    const uniqueFlights = new Set();
-    const uniqueAircraft = new Set();
 
-    features.forEach((feature) => {
-      const props = feature.properties;
-      if (props.flight_id) {
-        uniqueFlights.add(props.flight_id);
-      }
-      if (props.icao24) {
-        uniqueAircraft.add(props.icao24);
-      }
-    });
+    if (this.currentMode === 'h3') {
+      // H3 mode: count cells and total affected flights
+      let totalAffected = 0;
+      let highCountCells = 0;
 
-    return {
-      totalCells: features.length, // Total spoofing events
-      uniqueAircraft: uniqueAircraft.size,
-      highSeverityCells: uniqueFlights.size, // Reuse as unique flights
-    };
+      features.forEach((feature) => {
+        const count = feature.properties.count || 0;
+        totalAffected += count;
+        if (count >= 10) {
+          highCountCells++;
+        }
+      });
+
+      return {
+        totalCells: features.length,
+        totalAffected: totalAffected,
+        highCountCells: highCountCells,
+      };
+    } else {
+      // Agg mode: count unique flights and aircraft
+      const uniqueFlights = new Set();
+      const uniqueAircraft = new Set();
+
+      features.forEach((feature) => {
+        const props = feature.properties;
+        if (props.flight_id) {
+          uniqueFlights.add(props.flight_id);
+        }
+        if (props.icao24) {
+          uniqueAircraft.add(props.icao24);
+        }
+      });
+
+      return {
+        totalCells: features.length, // Total spoofing events
+        uniqueAircraft: uniqueAircraft.size,
+        highSeverityCells: uniqueFlights.size, // Reuse as unique flights
+      };
+    }
   }
 
   /**
@@ -157,7 +245,43 @@ class SpoofingLayer {
   showPopup(feature, lngLat) {
     const props = feature.properties;
 
-    // Format timestamps
+    // Check if this is an H3 cell
+    if (this.currentMode === 'h3' || props.count !== undefined) {
+      // H3 cell popup - try multiple locations for H3 index
+      console.log('H3 Feature:', {
+        featureId: feature.id,
+        propsId: props.id,
+        propsH3Index: props.h3_index,
+        allProps: props,
+      });
+
+      const h3Index =
+        feature.id || props.id || props.h3_index || props.h3Index || 'N/A';
+
+      const html = `
+        <div class="popup-content">
+          <h4>🔷 Spoofing H3 Cell</h4>
+          <div class="popup-stat">
+            <span class="popup-stat-label">H3 Index:</span>
+            <span class="popup-stat-value" style="font-size: 0.85rem; word-break: break-all;">${h3Index}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="popup-stat-label">Affected Flights:</span>
+            <span class="popup-stat-value">${props.count || 0}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="popup-stat-label">Coordinates Source:</span>
+            <span class="popup-stat-value">${
+              props.coordinates_source || 'N/A'
+            }</span>
+          </div>
+        </div>
+      `;
+      new mapboxgl.Popup().setLngLat(lngLat).setHTML(html).addTo(this.map);
+      return;
+    }
+
+    // Format timestamps for flight events
     const formatTime = (timestamp) => {
       if (!timestamp) return 'N/A';
       const date = new Date(timestamp);
@@ -180,6 +304,7 @@ class SpoofingLayer {
       return `${track.toFixed(1)}°`;
     };
 
+    // Flight event popup
     const html = `
       <div class="popup-content">
         <h4>🛩️ Spoofing Event</h4>
@@ -245,6 +370,18 @@ class SpoofingLayer {
 
     if (this.map.getLayer(this.pointLayerId)) {
       this.map.setLayoutProperty(this.pointLayerId, 'visibility', visibility);
+    }
+
+    if (this.map.getLayer(this.h3LayerId)) {
+      this.map.setLayoutProperty(this.h3LayerId, 'visibility', visibility);
+    }
+
+    if (this.map.getLayer(this.h3OutlineLayerId)) {
+      this.map.setLayoutProperty(
+        this.h3OutlineLayerId,
+        'visibility',
+        visibility
+      );
     }
   }
 }

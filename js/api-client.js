@@ -134,15 +134,20 @@ class APIClient {
    */
   async getSpoofingH3Data(options = {}) {
     const {
-      lookback_minutes = 1440,
+      lookback_hours = 24,
+      lookback_minutes = lookback_hours * 60, // Convert hours to minutes for API
       resolution = 3,
       coordinates_source = 'interpolated',
+      max_time_diff_before_sec = 600,
+      max_time_diff_after_sec = 600,
     } = options;
 
     return await this._get('/db-api/v1/spoofing/h3_geojson', {
       lookback_minutes,
       resolution,
       coordinates_source,
+      max_time_diff_before_sec,
+      max_time_diff_after_sec,
     });
   }
 }

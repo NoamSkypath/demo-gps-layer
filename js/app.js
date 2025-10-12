@@ -14,6 +14,11 @@ class App {
       max_ratio_bad: 0.05,
       max_n_bad: 3,
       show_no_coverage: false,
+      // H3-specific parameters
+      resolution: 3,
+      coordinates_source: 'interpolated',
+      max_time_diff_before_sec: 600,
+      max_time_diff_after_sec: 600,
     };
     this.isLoading = false;
     this.currentJsonData = null;
@@ -168,6 +173,53 @@ class App {
         this.refreshData();
       });
 
+    // H3 Resolution slider
+    const h3ResolutionSlider = document.getElementById('h3-resolution');
+    const h3ResolutionValue = document.getElementById('h3-resolution-value');
+    h3ResolutionSlider.addEventListener('input', (e) => {
+      h3ResolutionValue.textContent = e.target.value;
+    });
+    h3ResolutionSlider.addEventListener('change', (e) => {
+      this.currentSettings.resolution = parseInt(e.target.value);
+      this.refreshData();
+    });
+
+    // H3 Coordinates Source
+    document
+      .getElementById('h3-coords-source')
+      .addEventListener('change', (e) => {
+        this.currentSettings.coordinates_source = e.target.value;
+        this.refreshData();
+      });
+
+    // H3 Max Time Diff Before slider
+    const h3TimeDiffBeforeSlider = document.getElementById(
+      'h3-time-diff-before'
+    );
+    const h3TimeDiffBeforeValue = document.getElementById(
+      'h3-time-diff-before-value'
+    );
+    h3TimeDiffBeforeSlider.addEventListener('input', (e) => {
+      h3TimeDiffBeforeValue.textContent = e.target.value;
+    });
+    h3TimeDiffBeforeSlider.addEventListener('change', (e) => {
+      this.currentSettings.max_time_diff_before_sec = parseInt(e.target.value);
+      this.refreshData();
+    });
+
+    // H3 Max Time Diff After slider
+    const h3TimeDiffAfterSlider = document.getElementById('h3-time-diff-after');
+    const h3TimeDiffAfterValue = document.getElementById(
+      'h3-time-diff-after-value'
+    );
+    h3TimeDiffAfterSlider.addEventListener('input', (e) => {
+      h3TimeDiffAfterValue.textContent = e.target.value;
+    });
+    h3TimeDiffAfterSlider.addEventListener('change', (e) => {
+      this.currentSettings.max_time_diff_after_sec = parseInt(e.target.value);
+      this.refreshData();
+    });
+
     // Initialize grouping controls visibility
     this.toggleGroupingControls(this.currentSettings.grouped);
 
@@ -255,12 +307,35 @@ class App {
    * Update statistics panel
    */
   updateStats(stats, metadata) {
-    document.getElementById('stat-cells').textContent =
-      stats.totalCells.toLocaleString();
-    document.getElementById('stat-aircraft').textContent =
-      stats.uniqueAircraft.toLocaleString();
-    document.getElementById('stat-high').textContent =
-      stats.highSeverityCells.toLocaleString();
+    document.getElementById('stat-cells').textContent = (
+      stats.totalCells || 0
+    ).toLocaleString();
+
+    // Handle different stat types based on data source
+    if (stats.totalAffected !== undefined) {
+      // H3 mode: show total affected flights
+      document.getElementById('stat-aircraft').textContent =
+        stats.totalAffected.toLocaleString();
+    } else if (stats.uniqueAircraft !== undefined) {
+      // Jamming or coverage mode
+      document.getElementById('stat-aircraft').textContent =
+        stats.uniqueAircraft.toLocaleString();
+    } else {
+      document.getElementById('stat-aircraft').textContent = '0';
+    }
+
+    // Handle high severity/count cells
+    if (stats.highCountCells !== undefined) {
+      // H3 mode: high count cells (10+)
+      document.getElementById('stat-high').textContent =
+        stats.highCountCells.toLocaleString();
+    } else if (stats.highSeverityCells !== undefined) {
+      // Jamming/spoofing agg mode
+      document.getElementById('stat-high').textContent =
+        stats.highSeverityCells.toLocaleString();
+    } else {
+      document.getElementById('stat-high').textContent = '0';
+    }
 
     const now = new Date();
     document.getElementById('stat-updated').textContent =
@@ -923,18 +998,47 @@ class App {
     const isSpoofing = dataSource.startsWith('spoofing/');
 
     if (isSpoofing) {
-      // Spoofing legend
-      legend.innerHTML = `
-        <h4>Spoofing Events</h4>
-        <div class="legend-item">
-          <span class="legend-color" style="background: #f59e0b; width: 30px; height: 3px; border-radius: 0;"></span>
-          <span>Flight Path</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-color" style="background: #dc2626; border: 2px solid #fff; border-radius: 50%;"></span>
-          <span>Event Location</span>
-        </div>
-      `;
+      const isH3 = dataSource === 'spoofing/h3';
+
+      if (isH3) {
+        // H3 Grid legend
+        legend.innerHTML = `
+          <h4>Spoofing H3 Grid</h4>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #fef3c7"></span>
+            <span>1-5 Flights</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #fbbf24"></span>
+            <span>5-10 Flights</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #f59e0b"></span>
+            <span>10-20 Flights</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #d97706"></span>
+            <span>20-50 Flights</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #dc2626"></span>
+            <span>50+ Flights</span>
+          </div>
+        `;
+      } else {
+        // Spoofing agg legend
+        legend.innerHTML = `
+          <h4>Spoofing Events</h4>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #f59e0b; width: 30px; height: 3px; border-radius: 0;"></span>
+            <span>Flight Path</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #dc2626; border: 2px solid #fff; border-radius: 50%;"></span>
+            <span>Event Location</span>
+          </div>
+        `;
+      }
     } else if (isCoverage) {
       // Coverage legend
       legend.innerHTML = `
@@ -1013,8 +1117,23 @@ class App {
     const jammingDateRange = document.getElementById('jamming-date-range');
     const spoofingDateRange = document.getElementById('spoofing-date-range');
 
+    // H3 control groups
+    const h3Options = document.getElementById('h3-options');
+    const h3ResolutionGroup = document.getElementById('h3-resolution-group');
+    const h3CoordsSourceGroup = document.getElementById(
+      'h3-coords-source-group'
+    );
+    const h3TimeDiffBeforeGroup = document.getElementById(
+      'h3-time-diff-before-group'
+    );
+    const h3TimeDiffAfterGroup = document.getElementById(
+      'h3-time-diff-after-group'
+    );
+
+    const isH3 = dataSource === 'spoofing/h3';
+
     if (isSpoofing) {
-      // For spoofing: only show lookback and date range placeholder
+      // For spoofing: hide all jamming controls
       nObsMinGroup.style.display = 'none';
       altitudeGroup.style.display = 'none';
       showNoCoverageGroup.style.display = 'none';
@@ -1027,9 +1146,26 @@ class App {
       document.getElementById('group-max-ratio-bad').style.display = 'none';
       document.getElementById('group-max-n-bad').style.display = 'none';
 
-      // Show spoofing date range placeholder
+      // Show/hide spoofing-specific controls based on type
       jammingDateRange.style.display = 'none';
-      spoofingDateRange.style.display = 'block';
+
+      if (isH3) {
+        // H3 mode: hide agg date range, show H3 controls
+        spoofingDateRange.style.display = 'none';
+        h3Options.style.display = 'block';
+        h3ResolutionGroup.style.display = 'block';
+        h3CoordsSourceGroup.style.display = 'block';
+        h3TimeDiffBeforeGroup.style.display = 'block';
+        h3TimeDiffAfterGroup.style.display = 'block';
+      } else {
+        // Agg mode: show agg date range, hide H3 controls
+        spoofingDateRange.style.display = 'block';
+        h3Options.style.display = 'none';
+        h3ResolutionGroup.style.display = 'none';
+        h3CoordsSourceGroup.style.display = 'none';
+        h3TimeDiffBeforeGroup.style.display = 'none';
+        h3TimeDiffAfterGroup.style.display = 'none';
+      }
     } else if (isCoverage) {
       // For coverage: change "Min Observations" to "Min Count"
       nObsMinLabel.innerHTML =
@@ -1053,6 +1189,13 @@ class App {
       // Hide date range placeholders (coverage doesn't support date ranges)
       jammingDateRange.style.display = 'none';
       spoofingDateRange.style.display = 'none';
+
+      // Hide H3 controls
+      h3Options.style.display = 'none';
+      h3ResolutionGroup.style.display = 'none';
+      h3CoordsSourceGroup.style.display = 'none';
+      h3TimeDiffBeforeGroup.style.display = 'none';
+      h3TimeDiffAfterGroup.style.display = 'none';
     } else {
       // For aggregated jamming: use "Min Observations"
       nObsMinLabel.innerHTML =
@@ -1077,6 +1220,13 @@ class App {
       // Show jamming date range placeholder
       jammingDateRange.style.display = 'block';
       spoofingDateRange.style.display = 'none';
+
+      // Hide H3 controls
+      h3Options.style.display = 'none';
+      h3ResolutionGroup.style.display = 'none';
+      h3CoordsSourceGroup.style.display = 'none';
+      h3TimeDiffBeforeGroup.style.display = 'none';
+      h3TimeDiffAfterGroup.style.display = 'none';
 
       // Update grouping controls based on current grouped state
       this.toggleGroupingControls(this.currentSettings.grouped);
