@@ -6,6 +6,8 @@ class MapManager {
     this.map = null;
     this.apiClient = null;
     this.jammingLayer = null;
+    this.spoofingLayer = null;
+    this.currentLayerType = 'jamming'; // 'jamming' or 'spoofing'
     this.autoRefreshInterval = null;
   }
 
@@ -43,28 +45,56 @@ class MapManager {
     this.jammingLayer = new JammingLayer(this.map, this.apiClient);
     this.jammingLayer.initialize();
 
+    // Initialize spoofing layer
+    this.spoofingLayer = new SpoofingLayer(this.map, this.apiClient);
+    this.spoofingLayer.initialize();
+    this.spoofingLayer.setVisibility(false); // Hidden by default
+
     console.log('Map initialized successfully');
   }
 
   /**
-   * Load jamming data with current settings
+   * Load data with current settings (supports both jamming and spoofing)
    */
   async loadJammingData(options) {
     try {
-      const result = await this.jammingLayer.loadData(options);
+      const dataSource = options.dataSource || 'jamming/agg';
+      const isSpoofing = dataSource.startsWith('spoofing/');
+
+      // Switch layer visibility
+      if (isSpoofing && this.currentLayerType !== 'spoofing') {
+        this.jammingLayer.setVisibility(false);
+        this.spoofingLayer.setVisibility(true);
+        this.currentLayerType = 'spoofing';
+      } else if (!isSpoofing && this.currentLayerType !== 'jamming') {
+        this.spoofingLayer.setVisibility(false);
+        this.jammingLayer.setVisibility(true);
+        this.currentLayerType = 'jamming';
+      }
+
+      // Load data from appropriate layer
+      let result;
+      if (isSpoofing) {
+        result = await this.spoofingLayer.loadData(options);
+      } else {
+        result = await this.jammingLayer.loadData(options);
+      }
+
       return result;
     } catch (error) {
-      console.error('Error loading jamming data:', error);
+      console.error('Error loading data:', error);
       throw error;
     }
   }
 
   /**
-   * Toggle jamming layer visibility
+   * Toggle current layer visibility
    */
   toggleJammingLayer(visible) {
-    if (this.jammingLayer) {
+    if (this.currentLayerType === 'jamming' && this.jammingLayer) {
       this.jammingLayer.setVisibility(visible);
+    } else if (this.currentLayerType === 'spoofing' && this.spoofingLayer) {
+      this.spoofingLayer.setVisibility(visible);
     }
   }
 
@@ -99,11 +129,16 @@ class MapManager {
    * Fit map to data bounds
    */
   fitToData(padding = 50) {
-    if (!this.jammingLayer || !this.jammingLayer.currentData) {
+    const currentLayer =
+      this.currentLayerType === 'spoofing'
+        ? this.spoofingLayer
+        : this.jammingLayer;
+
+    if (!currentLayer || !currentLayer.currentData) {
       return;
     }
 
-    const features = this.jammingLayer.currentData.features;
+    const features = currentLayer.currentData.features;
     if (features.length === 0) {
       return;
     }
@@ -115,6 +150,12 @@ class MapManager {
         feature.geometry.coordinates[0].forEach((coord) => {
           bounds.extend(coord);
         });
+      } else if (feature.geometry.type === 'LineString') {
+        feature.geometry.coordinates.forEach((coord) => {
+          bounds.extend(coord);
+        });
+      } else if (feature.geometry.type === 'Point') {
+        bounds.extend(feature.geometry.coordinates);
       }
     });
 

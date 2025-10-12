@@ -89,6 +89,24 @@ body {
   display: none;
 }
 
+/* Disabled placeholder controls (for unimplemented features) */
+.disabled-placeholder {
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.disabled-label {
+  color: #6b7280 !important;
+  font-style: italic;
+}
+
+.disabled-text {
+  color: #9ca3af !important;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
 /* Coverage table cell styling */
 .coverage-yes {
   color: #10b981;

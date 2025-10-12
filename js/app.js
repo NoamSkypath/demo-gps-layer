@@ -920,8 +920,22 @@ class App {
   updateLegend(dataSource) {
     const legend = document.getElementById('map-legend');
     const isCoverage = dataSource === 'jamming/coverage';
+    const isSpoofing = dataSource.startsWith('spoofing/');
 
-    if (isCoverage) {
+    if (isSpoofing) {
+      // Spoofing legend
+      legend.innerHTML = `
+        <h4>Spoofing Events</h4>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #f59e0b; width: 30px; height: 3px; border-radius: 0;"></span>
+          <span>Flight Path</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #dc2626; border: 2px solid #fff; border-radius: 50%;"></span>
+          <span>Event Location</span>
+        </div>
+      `;
+    } else if (isCoverage) {
       // Coverage legend
       legend.innerHTML = `
         <h4>Coverage Areas</h4>
@@ -963,6 +977,7 @@ class App {
    */
   updateControlsVisibility(dataSource) {
     const isCoverage = dataSource === 'jamming/coverage';
+    const isSpoofing = dataSource.startsWith('spoofing/');
 
     // Get control elements
     const nObsMinGroup = document
@@ -971,9 +986,21 @@ class App {
     const nObsMinLabel = nObsMinGroup.querySelector('label');
     const nObsMinSmall = nObsMinGroup.querySelector('small');
 
+    const altitudeGroup = document
+      .getElementById('altitude-filter')
+      .closest('.control-group');
     const showNoCoverageGroup = document.getElementById(
       'coverage-show-no-coverage'
     );
+    const groupingSection = document.querySelector(
+      '.control-group .section-label'
+    ).parentElement;
+    const groupedToggleGroup = document
+      .getElementById('toggle-grouped')
+      .closest('.control-group');
+    const altitudeSummedGroup = document
+      .getElementById('toggle-altitude-summed')
+      .closest('.control-group');
     const hoursSummedGroup = document
       .getElementById('toggle-hours-summed')
       .closest('.control-group');
@@ -982,7 +1009,28 @@ class App {
       .closest('.control-group');
     const outputSection = fullOutputGroup.previousElementSibling; // The "Output Options" section
 
-    if (isCoverage) {
+    // Date range placeholder controls
+    const jammingDateRange = document.getElementById('jamming-date-range');
+    const spoofingDateRange = document.getElementById('spoofing-date-range');
+
+    if (isSpoofing) {
+      // For spoofing: only show lookback and date range placeholder
+      nObsMinGroup.style.display = 'none';
+      altitudeGroup.style.display = 'none';
+      showNoCoverageGroup.style.display = 'none';
+      groupingSection.style.display = 'none';
+      groupedToggleGroup.style.display = 'none';
+      altitudeSummedGroup.style.display = 'none';
+      hoursSummedGroup.style.display = 'none';
+      fullOutputGroup.style.display = 'none';
+      outputSection.style.display = 'none';
+      document.getElementById('group-max-ratio-bad').style.display = 'none';
+      document.getElementById('group-max-n-bad').style.display = 'none';
+
+      // Show spoofing date range placeholder
+      jammingDateRange.style.display = 'none';
+      spoofingDateRange.style.display = 'block';
+    } else if (isCoverage) {
       // For coverage: change "Min Observations" to "Min Count"
       nObsMinLabel.innerHTML =
         'Min Count: <span id="n-obs-value">' +
@@ -1001,21 +1049,34 @@ class App {
       // Hide grouping-specific agg controls
       document.getElementById('group-max-ratio-bad').style.display = 'none';
       document.getElementById('group-max-n-bad').style.display = 'none';
+
+      // Hide date range placeholders (coverage doesn't support date ranges)
+      jammingDateRange.style.display = 'none';
+      spoofingDateRange.style.display = 'none';
     } else {
-      // For aggregated: use "Min Observations"
+      // For aggregated jamming: use "Min Observations"
       nObsMinLabel.innerHTML =
         'Min Observations: <span id="n-obs-value">' +
         document.getElementById('n-obs-value').textContent +
         '</span>';
       nObsMinSmall.textContent = 'Minimum unique aircraft per cell';
 
-      // Hide coverage-specific controls
-      showNoCoverageGroup.style.display = 'none';
-
-      // Show all aggregated controls
+      // Show all controls
+      nObsMinGroup.style.display = 'block';
+      altitudeGroup.style.display = 'block';
+      groupingSection.style.display = 'block';
+      groupedToggleGroup.style.display = 'block';
+      altitudeSummedGroup.style.display = 'block';
       hoursSummedGroup.style.display = 'block';
       fullOutputGroup.style.display = 'block';
       outputSection.style.display = 'block';
+
+      // Hide coverage-specific controls
+      showNoCoverageGroup.style.display = 'none';
+
+      // Show jamming date range placeholder
+      jammingDateRange.style.display = 'block';
+      spoofingDateRange.style.display = 'none';
 
       // Update grouping controls based on current grouped state
       this.toggleGroupingControls(this.currentSettings.grouped);

@@ -119,7 +119,10 @@ class APIClient {
    * Get spoofing aggregated data as GeoJSON
    */
   async getSpoofingData(options = {}) {
-    const { lookback_minutes = 1440 } = options;
+    const {
+      lookback_hours = 6,
+      lookback_minutes = lookback_hours * 60, // Convert hours to minutes for API
+    } = options;
 
     return await this._get('/db-api/v1/spoofing/agg/geojson', {
       lookback_minutes,
