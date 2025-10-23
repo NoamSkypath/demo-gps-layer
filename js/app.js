@@ -21,6 +21,9 @@ class App {
       max_time_diff_after_sec: 600,
       // Spoofing-specific
       showBothSpoofingLayers: false,
+      spoofingSegments: [], // Segment filter for spoofing/agg (empty = all)
+      // Jamming-specific
+      jammingSeverityLevels: [], // Severity filter for jamming/agg (empty = all)
     };
     this.isLoading = false;
     this.currentJsonData = null;
@@ -243,6 +246,45 @@ class App {
         this.updateLegend(this.currentSettings.dataSource); // Update legend immediately
         this.debouncedRefresh();
       });
+
+    // Spoofing segment filter (checkboxes)
+    document.querySelectorAll('.segment-checkbox').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        const checkedSegments = Array.from(
+          document.querySelectorAll('.segment-checkbox:checked')
+        ).map((cb) => cb.value);
+        // If all checked or none checked, pass empty array (show all)
+        const allSegments = [
+          'during',
+          'before-during',
+          'during-after',
+          'before-during-after',
+        ];
+        this.currentSettings.spoofingSegments =
+          checkedSegments.length === 0 ||
+          checkedSegments.length === allSegments.length
+            ? []
+            : checkedSegments;
+        this.debouncedRefresh();
+      });
+    });
+
+    // Jamming severity filter (checkboxes)
+    document.querySelectorAll('.severity-checkbox').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        const checkedLevels = Array.from(
+          document.querySelectorAll('.severity-checkbox:checked')
+        ).map((cb) => cb.value);
+        // If all checked or none checked, pass empty array (show all)
+        const allLevels = ['zero', 'low', 'high'];
+        this.currentSettings.jammingSeverityLevels =
+          checkedLevels.length === 0 ||
+          checkedLevels.length === allLevels.length
+            ? []
+            : checkedLevels;
+        this.debouncedRefresh();
+      });
+    });
 
     // Initialize grouping controls visibility
     this.toggleGroupingControls(this.currentSettings.grouped);
@@ -851,7 +893,7 @@ class App {
         if (col === 'id') {
           cellValue = feature.id || '-';
         } else if (col === 'type') {
-          cellValue = feature.type || '-';
+          cellValue = feature.geometry?.type || '-';
         } else if (col === 'geometry') {
           cellValue = feature.geometry ? '✓' : '-';
           cellClass = 'geometry-cell';
@@ -1155,24 +1197,20 @@ class App {
         </div>
       `;
     } else {
-      // Jamming aggregated legend
+      // Jamming aggregated legend (3 levels)
       legend.innerHTML = `
         <h4>Jamming Severity</h4>
         <div class="legend-item">
-          <span class="legend-color" style="background: #fef3c7"></span>
-          <span>0-5% Minimal</span>
+          <span class="legend-color" style="background: #E5E7EB"></span>
+          <span>Zero (0%-1%)</span>
         </div>
         <div class="legend-item">
-          <span class="legend-color" style="background: #fed7aa"></span>
-          <span>5-15% Low</span>
+          <span class="legend-color" style="background: #FCD34D"></span>
+          <span>Low (1%-10%)</span>
         </div>
         <div class="legend-item">
-          <span class="legend-color" style="background: #fb923c"></span>
-          <span>15-30% Moderate</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-color" style="background: #dc2626"></span>
-          <span>30%+ High</span>
+          <span class="legend-color" style="background: #DC2626"></span>
+          <span>High (10%-100%)</span>
         </div>
       `;
     }
@@ -1219,6 +1257,16 @@ class App {
     const jammingDateRange = document.getElementById('jamming-date-range');
     const spoofingDateRange = document.getElementById('spoofing-date-range');
 
+    // Spoofing segment filter
+    const spoofingSegmentFilter = document.getElementById(
+      'spoofing-segment-filter'
+    );
+
+    // Jamming severity filter
+    const jammingSeverityFilter = document.getElementById(
+      'jamming-severity-filter'
+    );
+
     // H3 control groups
     const h3Options = document.getElementById('h3-options');
     const h3ResolutionGroup = document.getElementById('h3-resolution-group');
@@ -1252,6 +1300,7 @@ class App {
       outputSection.style.display = 'none';
       document.getElementById('group-max-ratio-bad').style.display = 'none';
       document.getElementById('group-max-n-bad').style.display = 'none';
+      jammingSeverityFilter.style.display = 'none';
 
       // Show "both layers" option for spoofing
       spoofingBothLayersGroup.style.display = 'block';
@@ -1260,16 +1309,18 @@ class App {
       jammingDateRange.style.display = 'none';
 
       if (isH3) {
-        // H3 mode: hide agg date range, show H3 controls
+        // H3 mode: hide agg date range and segment filter, show H3 controls
         spoofingDateRange.style.display = 'none';
+        spoofingSegmentFilter.style.display = 'none';
         h3Options.style.display = 'block';
         h3ResolutionGroup.style.display = 'block';
         h3CoordsSourceGroup.style.display = 'block';
         h3TimeDiffBeforeGroup.style.display = 'block';
         h3TimeDiffAfterGroup.style.display = 'block';
       } else {
-        // Agg mode: show agg date range, hide H3 controls
+        // Agg mode: show agg date range and segment filter, hide H3 controls
         spoofingDateRange.style.display = 'block';
+        spoofingSegmentFilter.style.display = 'block';
         h3Options.style.display = 'none';
         h3ResolutionGroup.style.display = 'none';
         h3CoordsSourceGroup.style.display = 'none';
@@ -1302,6 +1353,10 @@ class App {
 
       // Hide spoofing-specific controls
       spoofingBothLayersGroup.style.display = 'none';
+      spoofingSegmentFilter.style.display = 'none';
+
+      // Hide jamming severity filter (not for coverage)
+      jammingSeverityFilter.style.display = 'none';
 
       // Hide H3 controls
       h3Options.style.display = 'none';
@@ -1334,8 +1389,12 @@ class App {
       jammingDateRange.style.display = 'block';
       spoofingDateRange.style.display = 'none';
 
+      // Show jamming severity filter (for agg only)
+      jammingSeverityFilter.style.display = 'block';
+
       // Hide spoofing-specific controls
       spoofingBothLayersGroup.style.display = 'none';
+      spoofingSegmentFilter.style.display = 'none';
 
       // Hide H3 controls
       h3Options.style.display = 'none';

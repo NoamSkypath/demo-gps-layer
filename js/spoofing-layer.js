@@ -144,6 +144,24 @@ class SpoofingLayer {
   }
 
   /**
+   * Filter GeoJSON features by segment (client-side)
+   */
+  filterBySegment(geojson, segments) {
+    // If no segments selected (empty array), show all
+    if (!segments || segments.length === 0) {
+      return geojson;
+    }
+
+    return {
+      ...geojson,
+      features: geojson.features.filter((feature) => {
+        const segment = feature.properties.segment;
+        return segments.includes(segment);
+      }),
+    };
+  }
+
+  /**
    * Load spoofing data from API
    */
   async loadData(options = {}) {
@@ -151,6 +169,7 @@ class SpoofingLayer {
       // Determine mode based on dataSource (for stats calculation)
       const isH3 = options.dataSource === 'spoofing/h3';
       const showBoth = options.showBothSpoofingLayers === true;
+      const segments = options.spoofingSegments || [];
 
       // Set mode based on selected dataSource (not whether both are shown)
       this.currentMode = isH3 ? 'h3' : 'agg';
@@ -162,14 +181,20 @@ class SpoofingLayer {
           this.apiClient.getSpoofingH3Data(options),
         ]);
 
+        // Filter agg data by segment (client-side)
+        const filteredAggData = this.filterBySegment(
+          aggResponse.data,
+          segments
+        );
+
         // Merge the two GeoJSON feature collections for display
         this.currentData = {
           type: 'FeatureCollection',
-          features: [...aggResponse.data.features, ...h3Response.data.features],
+          features: [...filteredAggData.features, ...h3Response.data.features],
         };
 
         // Keep separate data for stats calculation based on selected endpoint
-        const statsData = isH3 ? h3Response.data : aggResponse.data;
+        const statsData = isH3 ? h3Response.data : filteredAggData;
         this.metadata = isH3 ? h3Response.metadata : aggResponse.metadata;
 
         // Update the map source with merged data
@@ -186,7 +211,12 @@ class SpoofingLayer {
           ? await this.apiClient.getSpoofingH3Data(options)
           : await this.apiClient.getSpoofingData(options);
 
-        this.currentData = response.data;
+        // Filter agg data by segment (client-side) - only for agg mode
+        const filteredData = isH3
+          ? response.data
+          : this.filterBySegment(response.data, segments);
+
+        this.currentData = filteredData;
         this.metadata = response.metadata;
 
         // Update the map source

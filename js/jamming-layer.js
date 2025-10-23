@@ -36,13 +36,11 @@ class JammingLayer {
           [
             'step',
             ['get', 'ratio_bad'],
-            CONFIG.JAMMING.COLOR_SCALE[0].color, // 0-5%
-            0.05,
-            CONFIG.JAMMING.COLOR_SCALE[1].color, // 5-15%
-            0.15,
-            CONFIG.JAMMING.COLOR_SCALE[2].color, // 15-30%
-            0.3,
-            CONFIG.JAMMING.COLOR_SCALE[3].color, // 30%+
+            CONFIG.JAMMING.COLOR_SCALE[0].color, // Zero (0%-1%)
+            0.01,
+            CONFIG.JAMMING.COLOR_SCALE[1].color, // Low (1%-10%)
+            0.1,
+            CONFIG.JAMMING.COLOR_SCALE[2].color, // High (10%-100%)
           ],
           ['==', ['get', 'coverage'], 'none'],
           // Coverage data with no coverage (red)
@@ -67,13 +65,11 @@ class JammingLayer {
           [
             'step',
             ['get', 'ratio_bad'],
-            CONFIG.JAMMING.COLOR_SCALE[0].color, // 0-5%
-            0.05,
-            CONFIG.JAMMING.COLOR_SCALE[1].color, // 5-15%
-            0.15,
-            CONFIG.JAMMING.COLOR_SCALE[2].color, // 15-30%
-            0.3,
-            CONFIG.JAMMING.COLOR_SCALE[3].color, // 30%+
+            CONFIG.JAMMING.COLOR_SCALE[0].color, // Zero (0%-1%)
+            0.01,
+            CONFIG.JAMMING.COLOR_SCALE[1].color, // Low (1%-10%)
+            0.1,
+            CONFIG.JAMMING.COLOR_SCALE[2].color, // High (10%-100%)
           ],
           ['==', ['get', 'coverage'], 'none'],
           // Coverage data with no coverage (red)
@@ -104,12 +100,50 @@ class JammingLayer {
   }
 
   /**
+   * Filter GeoJSON features by severity level (client-side)
+   * Severity levels:
+   * - zero: 0 <= ratio_bad < 0.01 (0% to <1%)
+   * - low: 0.01 <= ratio_bad < 0.1 (1% to <10%)
+   * - high: ratio_bad >= 0.1 (10% to 100%)
+   */
+  filterBySeverity(geojson, severityLevels) {
+    // If no levels selected (empty array), show all
+    if (!severityLevels || severityLevels.length === 0) {
+      return geojson;
+    }
+
+    return {
+      ...geojson,
+      features: geojson.features.filter((feature) => {
+        const ratioBad = feature.properties.ratio_bad || 0;
+
+        if (severityLevels.includes('zero') && ratioBad < 0.01) {
+          return true;
+        }
+        if (
+          severityLevels.includes('low') &&
+          ratioBad >= 0.01 &&
+          ratioBad < 0.1
+        ) {
+          return true;
+        }
+        if (severityLevels.includes('high') && ratioBad >= 0.1) {
+          return true;
+        }
+
+        return false;
+      }),
+    };
+  }
+
+  /**
    * Load jamming data from API
    */
   async loadData(options = {}) {
     try {
       // Determine which API method to call based on data source
       const dataSource = options.dataSource || 'jamming/agg';
+      const severityLevels = options.jammingSeverityLevels || [];
       let response;
 
       if (dataSource === 'jamming/coverage') {
@@ -118,10 +152,16 @@ class JammingLayer {
         response = await this.apiClient.getJammingData(options);
       }
 
-      this.currentData = response.data;
+      // Filter by severity (client-side) - only for agg data
+      const filteredData =
+        dataSource === 'jamming/agg'
+          ? this.filterBySeverity(response.data, severityLevels)
+          : response.data;
+
+      this.currentData = filteredData;
       this.metadata = response.metadata;
 
-      // Update the map source
+      // Update the map source with filtered data
       this.updateSource(this.currentData);
 
       return {

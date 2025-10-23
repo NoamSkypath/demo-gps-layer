@@ -20,18 +20,17 @@ const CONFIG = {
 
   // Jamming Layer Configuration
   JAMMING: {
-    DEFAULT_LOOKBACK_HOURS: 6,
+    DEFAULT_LOOKBACK_HOURS: 24,
     DEFAULT_ALTITUDE: 'FL100-FL450',
     DEFAULT_GROUPED: false,
     DEFAULT_N_OBS_MIN: 5,
     AUTO_REFRESH_INTERVAL: 15 * 60 * 1000, // 15 minutes in milliseconds
 
-    // Color scale for ratio_bad (severity)
+    // Color scale for ratio_bad (severity) - 3 levels
     COLOR_SCALE: [
-      { threshold: 0, color: '#FEF3C7', label: '0-5% Minimal' },
-      { threshold: 0.05, color: '#FED7AA', label: '5-15% Low' },
-      { threshold: 0.15, color: '#FB923C', label: '15-30% Moderate' },
-      { threshold: 0.3, color: '#DC2626', label: '30%+ High' },
+      { threshold: 0, color: '#E5E7EB', label: 'Zero (0%-1%)' }, // Gray for zero to <1%
+      { threshold: 0.01, color: '#FCD34D', label: 'Low (1%-10%)' }, // Yellow for 1% to <10%
+      { threshold: 0.1, color: '#DC2626', label: 'High (10%-100%)' }, // Red for 10%+
     ],
   },
 };

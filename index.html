@@ -70,14 +70,14 @@
             <!-- Time Control -->
             <div class="control-group">
               <label for="lookback-hours"
-                >Lookback Hours: <span id="hours-value">6</span></label
+                >Lookback Hours: <span id="hours-value">24</span></label
               >
               <input
                 type="range"
                 id="lookback-hours"
                 min="1"
                 max="72"
-                value="6"
+                value="24"
                 step="1"
               />
               <small>1-72 hours</small>
@@ -123,6 +123,54 @@
                 >📅 Date Range (Not Implemented)</label
               >
               <small class="disabled-text">start_time / end_time</small>
+            </div>
+
+            <!-- Segment Filter (Spoofing/agg only) -->
+            <div
+              class="control-group"
+              id="spoofing-segment-filter"
+              style="display: none"
+            >
+              <label class="section-label">✈️ Flight Segment</label>
+              <div class="checkbox-group">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    class="segment-checkbox"
+                    value="during"
+                    checked
+                  />
+                  <span>During Only</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    class="segment-checkbox"
+                    value="before-during"
+                    checked
+                  />
+                  <span>Before-During</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    class="segment-checkbox"
+                    value="during-after"
+                    checked
+                  />
+                  <span>During-After</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    class="segment-checkbox"
+                    value="before-during-after"
+                    checked
+                  />
+                  <span>Before-During-After</span>
+                </label>
+              </div>
+              <small>Uncheck to hide from map</small>
             </div>
 
             <!-- H3 Options (Spoofing/h3 only) -->
@@ -222,6 +270,45 @@
                 <option value="FL200-FL300">FL200-FL300</option>
                 <option value="FL300-FL450">FL300-FL450</option>
               </select>
+            </div>
+
+            <!-- Severity Filter (Jamming/agg only) -->
+            <div
+              class="control-group"
+              id="jamming-severity-filter"
+              style="display: none"
+            >
+              <label class="section-label">🎯 Severity Level</label>
+              <div class="checkbox-group">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    class="severity-checkbox"
+                    value="zero"
+                    checked
+                  />
+                  <span>⬜ Zero (0%-1%)</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    class="severity-checkbox"
+                    value="low"
+                    checked
+                  />
+                  <span>🟡 Low (1%-10%)</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    class="severity-checkbox"
+                    value="high"
+                    checked
+                  />
+                  <span>🔴 High (10%-100%)</span>
+                </label>
+              </div>
+              <small>Uncheck to hide from map</small>
             </div>
 
             <!-- Show No Coverage (coverage only) - DISABLED -->
