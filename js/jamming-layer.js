@@ -137,6 +137,96 @@ class JammingLayer {
   }
 
   /**
+   * Get severity level for a ratio_bad value
+   */
+  getSeverityLevel(ratioBad) {
+    if (ratioBad < 0.01) return 'zero';
+    if (ratioBad < 0.1) return 'low';
+    return 'high';
+  }
+
+  /**
+   * Union hexagons by severity level (client-side)
+   * Uses Turf.js to merge all hexagons of the same severity into single polygons
+   */
+  unionBySeverity(geojson) {
+    if (!geojson || !geojson.features || geojson.features.length === 0) {
+      return geojson;
+    }
+
+    // Check if Turf.js is available
+    if (typeof turf === 'undefined') {
+      console.error('Turf.js is not loaded. Cannot perform union operation.');
+      return geojson;
+    }
+
+    // Group features by severity level
+    const severityGroups = {
+      zero: [],
+      low: [],
+      high: [],
+    };
+
+    geojson.features.forEach((feature) => {
+      const ratioBad = feature.properties.ratio_bad || 0;
+      const severity = this.getSeverityLevel(ratioBad);
+      severityGroups[severity].push(feature);
+    });
+
+    const unionedFeatures = [];
+
+    // Union each severity group
+    Object.keys(severityGroups).forEach((severity) => {
+      const features = severityGroups[severity];
+      if (features.length === 0) return;
+
+      try {
+        if (features.length === 1) {
+          // If only one feature, just use it
+          unionedFeatures.push(features[0]);
+        } else {
+          // Union all features in this severity group
+          let unionedPolygon = features[0];
+          for (let i = 1; i < features.length; i++) {
+            unionedPolygon = turf.union(
+              turf.featureCollection([unionedPolygon, features[i]])
+            );
+          }
+
+          // Create a new feature with unioned geometry
+          // Keep properties from the first feature, add severity info
+          const avgRatioBad =
+            features.reduce(
+              (sum, f) => sum + (f.properties.ratio_bad || 0),
+              0
+            ) / features.length;
+
+          unionedFeatures.push({
+            type: 'Feature',
+            geometry: unionedPolygon.geometry,
+            properties: {
+              ...features[0].properties,
+              ratio_bad: avgRatioBad,
+              severity_level: severity,
+              unioned_count: features.length,
+              unioned: true,
+            },
+          });
+        }
+      } catch (error) {
+        console.error(`Error unioning ${severity} severity features:`, error);
+        // If union fails, add original features
+        unionedFeatures.push(...features);
+      }
+    });
+
+    return {
+      type: 'FeatureCollection',
+      features: unionedFeatures,
+    };
+  }
+
+  /**
    * Load jamming data from API
    */
   async loadData(options = {}) {
@@ -153,10 +243,15 @@ class JammingLayer {
       }
 
       // Filter by severity (client-side) - only for agg data
-      const filteredData =
+      let filteredData =
         dataSource === 'jamming/agg'
           ? this.filterBySeverity(response.data, severityLevels)
           : response.data;
+
+      // Apply union by severity if enabled - only for agg data
+      if (dataSource === 'jamming/agg' && options.unionBySeverity === true) {
+        filteredData = this.unionBySeverity(filteredData);
+      }
 
       this.currentData = filteredData;
       this.metadata = response.metadata;

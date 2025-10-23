@@ -24,6 +24,7 @@ class App {
       spoofingSegments: [], // Segment filter for spoofing/agg (empty = all)
       // Jamming-specific
       jammingSeverityLevels: [], // Severity filter for jamming/agg (empty = all)
+      unionBySeverity: false, // Union hexagons by severity level
     };
     this.isLoading = false;
     this.currentJsonData = null;
@@ -285,6 +286,14 @@ class App {
         this.debouncedRefresh();
       });
     });
+
+    // Union by severity toggle
+    document
+      .getElementById('toggle-union-severity')
+      .addEventListener('change', (e) => {
+        this.currentSettings.unionBySeverity = e.target.checked;
+        this.debouncedRefresh();
+      });
 
     // Initialize grouping controls visibility
     this.toggleGroupingControls(this.currentSettings.grouped);
@@ -1266,6 +1275,9 @@ class App {
     const jammingSeverityFilter = document.getElementById(
       'jamming-severity-filter'
     );
+    const jammingUnionSeverity = document.getElementById(
+      'jamming-union-severity'
+    );
 
     // H3 control groups
     const h3Options = document.getElementById('h3-options');
@@ -1301,6 +1313,7 @@ class App {
       document.getElementById('group-max-ratio-bad').style.display = 'none';
       document.getElementById('group-max-n-bad').style.display = 'none';
       jammingSeverityFilter.style.display = 'none';
+      jammingUnionSeverity.style.display = 'none';
 
       // Show "both layers" option for spoofing
       spoofingBothLayersGroup.style.display = 'block';
@@ -1357,6 +1370,7 @@ class App {
 
       // Hide jamming severity filter (not for coverage)
       jammingSeverityFilter.style.display = 'none';
+      jammingUnionSeverity.style.display = 'none';
 
       // Hide H3 controls
       h3Options.style.display = 'none';
@@ -1391,6 +1405,7 @@ class App {
 
       // Show jamming severity filter (for agg only)
       jammingSeverityFilter.style.display = 'block';
+      jammingUnionSeverity.style.display = 'block';
 
       // Hide spoofing-specific controls
       spoofingBothLayersGroup.style.display = 'none';

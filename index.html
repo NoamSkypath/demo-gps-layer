@@ -12,6 +12,9 @@
     />
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 
+    <!-- Turf.js for geospatial operations -->
+    <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
+
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
@@ -309,6 +312,19 @@
                 </label>
               </div>
               <small>Uncheck to hide from map</small>
+            </div>
+
+            <!-- Union by Severity (Jamming/agg only) -->
+            <div
+              class="control-group"
+              id="jamming-union-severity"
+              style="display: none"
+            >
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-union-severity" />
+                <span>Union Hexagons by Severity</span>
+              </label>
+              <small>Merge hexagons of same level into single polygons</small>
             </div>
 
             <!-- Show No Coverage (coverage only) - DISABLED -->
