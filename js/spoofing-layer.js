@@ -148,26 +148,56 @@ class SpoofingLayer {
    */
   async loadData(options = {}) {
     try {
-      // Determine if this is H3 mode based on dataSource
+      // Determine mode based on dataSource (for stats calculation)
       const isH3 = options.dataSource === 'spoofing/h3';
+      const showBoth = options.showBothSpoofingLayers === true;
+
+      // Set mode based on selected dataSource (not whether both are shown)
       this.currentMode = isH3 ? 'h3' : 'agg';
 
-      // Call appropriate API method
-      const response = isH3
-        ? await this.apiClient.getSpoofingH3Data(options)
-        : await this.apiClient.getSpoofingData(options);
+      if (showBoth) {
+        // Load both agg and H3 data for display
+        const [aggResponse, h3Response] = await Promise.all([
+          this.apiClient.getSpoofingData(options),
+          this.apiClient.getSpoofingH3Data(options),
+        ]);
 
-      this.currentData = response.data;
-      this.metadata = response.metadata;
+        // Merge the two GeoJSON feature collections for display
+        this.currentData = {
+          type: 'FeatureCollection',
+          features: [...aggResponse.data.features, ...h3Response.data.features],
+        };
 
-      // Update the map source
-      this.updateSource(this.currentData);
+        // Keep separate data for stats calculation based on selected endpoint
+        const statsData = isH3 ? h3Response.data : aggResponse.data;
+        this.metadata = isH3 ? h3Response.metadata : aggResponse.metadata;
 
-      return {
-        data: this.currentData,
-        metadata: this.metadata,
-        stats: this.calculateStats(this.currentData),
-      };
+        // Update the map source with merged data
+        this.updateSource(this.currentData);
+
+        return {
+          data: this.currentData,
+          metadata: this.metadata,
+          stats: this.calculateStats(statsData), // Calculate from selected endpoint only
+        };
+      } else {
+        // Single layer mode (original behavior)
+        const response = isH3
+          ? await this.apiClient.getSpoofingH3Data(options)
+          : await this.apiClient.getSpoofingData(options);
+
+        this.currentData = response.data;
+        this.metadata = response.metadata;
+
+        // Update the map source
+        this.updateSource(this.currentData);
+
+        return {
+          data: this.currentData,
+          metadata: this.metadata,
+          stats: this.calculateStats(this.currentData),
+        };
+      }
     } catch (error) {
       console.error('Failed to load spoofing data:', error);
       throw error;
@@ -245,16 +275,9 @@ class SpoofingLayer {
   showPopup(feature, lngLat) {
     const props = feature.properties;
 
-    // Check if this is an H3 cell
-    if (this.currentMode === 'h3' || props.count !== undefined) {
+    // Check if this is an H3 cell (check for count property)
+    if (props.count !== undefined) {
       // H3 cell popup - try multiple locations for H3 index
-      console.log('H3 Feature:', {
-        featureId: feature.id,
-        propsId: props.id,
-        propsH3Index: props.h3_index,
-        allProps: props,
-      });
-
       const h3Index =
         feature.id || props.id || props.h3_index || props.h3Index || 'N/A';
 

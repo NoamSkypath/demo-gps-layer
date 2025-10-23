@@ -44,25 +44,45 @@ class JammingLayer {
             0.3,
             CONFIG.JAMMING.COLOR_SCALE[3].color, // 30%+
           ],
-          ['has', 'coverage'],
-          // Coverage data with no coverage
-          '#dc2626', // red for no coverage
-          // Coverage data with coverage (default)
-          '#10b981', // green for coverage areas
+          ['==', ['get', 'coverage'], 'none'],
+          // Coverage data with no coverage (red)
+          '#dc2626',
+          // Coverage data with coverage (default green)
+          '#10b981',
         ],
         'fill-opacity': 0.6,
       },
     });
 
-    // Add outline layer
+    // Add outline layer (matching fill color)
     this.map.addLayer({
       id: `${this.layerId}-outline`,
       type: 'line',
       source: this.sourceId,
       paint: {
-        'line-color': '#ffffff',
+        'line-color': [
+          'case',
+          ['has', 'ratio_bad'],
+          // Jamming aggregated data - color by severity
+          [
+            'step',
+            ['get', 'ratio_bad'],
+            CONFIG.JAMMING.COLOR_SCALE[0].color, // 0-5%
+            0.05,
+            CONFIG.JAMMING.COLOR_SCALE[1].color, // 5-15%
+            0.15,
+            CONFIG.JAMMING.COLOR_SCALE[2].color, // 15-30%
+            0.3,
+            CONFIG.JAMMING.COLOR_SCALE[3].color, // 30%+
+          ],
+          ['==', ['get', 'coverage'], 'none'],
+          // Coverage data with no coverage (red)
+          '#dc2626',
+          // Coverage data with coverage (default green)
+          '#10b981',
+        ],
         'line-width': 1,
-        'line-opacity': 0.3,
+        'line-opacity': 0.8,
       },
     });
 

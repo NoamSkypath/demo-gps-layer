@@ -27,10 +27,7 @@ class MapManager {
       attributionControl: true,
     });
 
-    // Add navigation controls
-    this.map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    // Add scale control
+    // Add scale control (zoom controls disabled per user request)
     this.map.addControl(new mapboxgl.ScaleControl(), 'bottom-right');
 
     // Wait for map to load

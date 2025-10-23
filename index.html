@@ -54,6 +54,19 @@
               </select>
             </div>
 
+            <!-- Show Both Spoofing Layers (spoofing only) -->
+            <div
+              class="control-group"
+              id="spoofing-both-layers"
+              style="display: none"
+            >
+              <label class="checkbox-label">
+                <input type="checkbox" id="toggle-both-spoofing-layers" />
+                <span>Show Both Layers (Events + Grid)</span>
+              </label>
+              <small>Display flight events and H3 grid simultaneously</small>
+            </div>
+
             <!-- Time Control -->
             <div class="control-group">
               <label for="lookback-hours"
@@ -211,17 +224,19 @@
               </select>
             </div>
 
-            <!-- Show No Coverage (coverage only) -->
+            <!-- Show No Coverage (coverage only) - DISABLED -->
             <div
-              class="control-group"
+              class="control-group disabled-placeholder"
               id="coverage-show-no-coverage"
               style="display: none"
             >
-              <label class="checkbox-label">
-                <input type="checkbox" id="toggle-show-no-coverage" />
+              <label class="checkbox-label disabled-label">
+                <input type="checkbox" id="toggle-show-no-coverage" disabled />
                 <span>Show No Coverage Areas</span>
               </label>
-              <small>Display areas lacking coverage in red</small>
+              <small class="disabled-text"
+                >⚠️ Disabled (dataset too large)</small
+              >
             </div>
 
             <!-- Grouping Options -->
@@ -305,15 +320,21 @@
             <div class="stats-panel">
               <h4>📊 Statistics</h4>
               <div class="stat-item">
-                <span class="stat-label">Total Cells:</span>
+                <span class="stat-label" id="stat-cells-label"
+                  >Total Cells:</span
+                >
                 <span class="stat-value" id="stat-cells">-</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">Unique Aircraft:</span>
+                <span class="stat-label" id="stat-aircraft-label"
+                  >Unique Aircraft:</span
+                >
                 <span class="stat-value" id="stat-aircraft">-</span>
               </div>
-              <div class="stat-item">
-                <span class="stat-label">High Severity:</span>
+              <div class="stat-item" id="stat-high-item">
+                <span class="stat-label" id="stat-high-label"
+                  >High Severity:</span
+                >
                 <span class="stat-value" id="stat-high">-</span>
               </div>
               <div class="stat-item">

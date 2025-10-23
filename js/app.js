@@ -19,6 +19,8 @@ class App {
       coordinates_source: 'interpolated',
       max_time_diff_before_sec: 600,
       max_time_diff_after_sec: 600,
+      // Spoofing-specific
+      showBothSpoofingLayers: false,
     };
     this.isLoading = false;
     this.currentJsonData = null;
@@ -27,11 +29,11 @@ class App {
     this.tableSortColumn = null;
     this.tableSortDirection = 'asc'; // 'asc' or 'desc'
     this.refreshDebounceTimer = null;
-    this.DEBOUNCE_DELAY = 3000; // 3 seconds
+    this.DEBOUNCE_DELAY = 2000; // 2 seconds
   }
 
   /**
-   * Debounced refresh - waits 3 seconds after last change before refreshing
+   * Debounced refresh - waits 2 seconds after last change before refreshing
    */
   debouncedRefresh() {
     // Clear existing timer
@@ -89,6 +91,7 @@ class App {
       this.currentSettings.dataSource = e.target.value;
       this.updateControlsVisibility(e.target.value);
       this.updateLegend(e.target.value);
+      this.updateStatsLabels(e.target.value);
       this.debouncedRefresh();
     });
 
@@ -232,6 +235,15 @@ class App {
       this.debouncedRefresh();
     });
 
+    // Show both spoofing layers toggle
+    document
+      .getElementById('toggle-both-spoofing-layers')
+      .addEventListener('change', (e) => {
+        this.currentSettings.showBothSpoofingLayers = e.target.checked;
+        this.updateLegend(this.currentSettings.dataSource); // Update legend immediately
+        this.debouncedRefresh();
+      });
+
     // Initialize grouping controls visibility
     this.toggleGroupingControls(this.currentSettings.grouped);
 
@@ -240,6 +252,9 @@ class App {
 
     // Initialize legend
     this.updateLegend(this.currentSettings.dataSource);
+
+    // Initialize stats labels
+    this.updateStatsLabels(this.currentSettings.dataSource);
 
     // Refresh button
     document.getElementById('refresh-btn').addEventListener('click', () => {
@@ -312,6 +327,45 @@ class App {
     } finally {
       this.isLoading = false;
       this.setRefreshButtonLoading(false);
+    }
+  }
+
+  /**
+   * Update statistics panel labels based on data source
+   */
+  updateStatsLabels(dataSource) {
+    const cellsLabel = document.getElementById('stat-cells-label');
+    const aircraftLabel = document.getElementById('stat-aircraft-label');
+    const aircraftItem = document
+      .getElementById('stat-aircraft-label')
+      .closest('.stat-item');
+    const highLabel = document.getElementById('stat-high-label');
+    const highItem = document.getElementById('stat-high-item');
+
+    if (dataSource === 'jamming/agg') {
+      cellsLabel.textContent = 'Total Cells:';
+      aircraftLabel.textContent = 'Unique Aircraft:';
+      aircraftItem.style.display = 'flex';
+      highLabel.textContent = 'High Severity (≥30%):';
+      highItem.style.display = 'flex';
+    } else if (dataSource === 'jamming/coverage') {
+      cellsLabel.textContent = 'Coverage Areas:';
+      aircraftLabel.textContent = 'Unique Aircraft:';
+      aircraftItem.style.display = 'none'; // Hide for coverage (not relevant)
+      highLabel.textContent = 'High Severity:';
+      highItem.style.display = 'none'; // Hide for coverage (not relevant)
+    } else if (dataSource === 'spoofing/agg') {
+      cellsLabel.textContent = 'Total Events:';
+      aircraftLabel.textContent = 'Unique Aircraft:';
+      aircraftItem.style.display = 'flex';
+      highLabel.textContent = 'Unique Flights:';
+      highItem.style.display = 'flex';
+    } else if (dataSource === 'spoofing/h3') {
+      cellsLabel.textContent = 'Total H3 Cells:';
+      aircraftLabel.textContent = 'Total Affected:';
+      aircraftItem.style.display = 'flex';
+      highLabel.textContent = 'High Activity (≥10):';
+      highItem.style.display = 'flex';
     }
   }
 
@@ -1011,8 +1065,44 @@ class App {
 
     if (isSpoofing) {
       const isH3 = dataSource === 'spoofing/h3';
+      const showBoth = this.currentSettings.showBothSpoofingLayers;
 
-      if (isH3) {
+      if (showBoth) {
+        // Both layers legend (combined)
+        legend.innerHTML = `
+          <h4>Spoofing (Both Layers)</h4>
+          <div style="margin-top: 0.5rem; font-weight: 600;">Flight Events:</div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #f59e0b; width: 30px; height: 3px; border-radius: 0;"></span>
+            <span>Flight Path</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #dc2626; border: 2px solid #fff; border-radius: 50%;"></span>
+            <span>Event Location</span>
+          </div>
+          <div style="margin-top: 0.5rem; font-weight: 600;">H3 Grid:</div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #fef3c7"></span>
+            <span>1-5 Flights</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #fbbf24"></span>
+            <span>5-10 Flights</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #f59e0b"></span>
+            <span>10-20 Flights</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #d97706"></span>
+            <span>20-50 Flights</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #dc2626"></span>
+            <span>50+ Flights</span>
+          </div>
+        `;
+      } else if (isH3) {
         // H3 Grid legend
         legend.innerHTML = `
           <h4>Spoofing H3 Grid</h4>
@@ -1144,6 +1234,11 @@ class App {
 
     const isH3 = dataSource === 'spoofing/h3';
 
+    // Spoofing "both layers" control
+    const spoofingBothLayersGroup = document.getElementById(
+      'spoofing-both-layers'
+    );
+
     if (isSpoofing) {
       // For spoofing: hide all jamming controls
       nObsMinGroup.style.display = 'none';
@@ -1157,6 +1252,9 @@ class App {
       outputSection.style.display = 'none';
       document.getElementById('group-max-ratio-bad').style.display = 'none';
       document.getElementById('group-max-n-bad').style.display = 'none';
+
+      // Show "both layers" option for spoofing
+      spoofingBothLayersGroup.style.display = 'block';
 
       // Show/hide spoofing-specific controls based on type
       jammingDateRange.style.display = 'none';
@@ -1202,6 +1300,9 @@ class App {
       jammingDateRange.style.display = 'none';
       spoofingDateRange.style.display = 'none';
 
+      // Hide spoofing-specific controls
+      spoofingBothLayersGroup.style.display = 'none';
+
       // Hide H3 controls
       h3Options.style.display = 'none';
       h3ResolutionGroup.style.display = 'none';
@@ -1232,6 +1333,9 @@ class App {
       // Show jamming date range placeholder
       jammingDateRange.style.display = 'block';
       spoofingDateRange.style.display = 'none';
+
+      // Hide spoofing-specific controls
+      spoofingBothLayersGroup.style.display = 'none';
 
       // Hide H3 controls
       h3Options.style.display = 'none';
